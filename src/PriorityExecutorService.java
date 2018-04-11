@@ -3,22 +3,27 @@ import java.util.concurrent.*;
 public class PriorityExecutorService<T extends Comparable & Runnable> {
 
     private ExecutorService executor;
-    private PriorityBlockingQueue<T> queue;
+    private BlockingQueue<T> queue;
     private boolean stop;
+    private int pollingTimeOut;
 
-    public PriorityExecutorService(ExecutorService executorService) {
+    public PriorityExecutorService(ExecutorService executorService, BlockingQueue<T> blockingQueue, int pollingTimeOut) {
+        this.pollingTimeOut = pollingTimeOut;
         this.executor = executorService;
-        queue = new PriorityBlockingQueue<T>();
-        stop = false;
-        activeExecutor();
-
+        this.queue = blockingQueue;
+        this.stop = false;
+        this.activeExecutor();
     }
 
-    private void activeExecutor() {
+    public void activeExecutor() {
         new Thread(()-> {
             while(!stop) {
                 try {
-                    executor.execute(queue.take());
+                    T toExecute = queue.poll(pollingTimeOut, TimeUnit.MILLISECONDS);
+
+                    if(toExecute != null)
+                        executor.execute(toExecute);
+
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
